@@ -1,0 +1,78 @@
+#!/bin/bash
+# MemInfo - Memory information and monitoring
+# Display memory usage with detailed breakdown
+
+set -e
+
+FORMAT="human"
+MONITOR=false
+
+usage() {
+    cat << EOF
+MemInfo - Memory Information Tool
+
+USAGE:
+    meminfo [options]
+
+OPTIONS:
+    -m, --monitor         Real-time monitoring
+    -j, --json            JSON output
+    -h, --help            Show help
+
+EXAMPLES:
+    meminfo
+    meminfo -m
+    meminfo -j
+
+EOF
+}
+
+show_mem() {
+    local meminfo=$(cat /proc/meminfo)
+
+    total=$(echo "$meminfo" | grep MemTotal | awk '{print $2}')
+    available=$(echo "$meminfo" | grep MemAvailable | awk '{print $2}')
+    free=$(echo "$meminfo" | grep MemFree | awk '{print $2}')
+    buffers=$(echo "$meminfo" | grep Buffers | awk '{print $2}')
+    cached=$(echo "$meminfo" | grep Cached | awk '{print $2}')
+    swap=$(echo "$meminfo" | grep SwapTotal | awk '{print $2}')
+    swap_free=$(echo "$meminfo" | grep SwapFree | awk '{print $2}')
+
+    total_mb=$((total / 1024))
+    avail_mb=$((available / 1024))
+    free_mb=$((free / 1024))
+    used_mb=$(( (total - available) / 1024 ))
+
+    echo "🧠 Memory Information"
+    echo "====================="
+    echo ""
+    echo "Total:     ${total_mb} MB"
+    echo "Used:      ${used_mb} MB"
+    echo "Available: ${avail_mb} MB"
+    echo "Free:      ${free_mb} MB"
+    echo ""
+    echo "Buffers/Cache: $(( (buffers + cached) / 1024 )) MB"
+    echo ""
+
+    if [[ "$swap" -gt 0 ]]; then
+        swap_mb=$((swap / 1024))
+        swap_used_mb=$(( (swap - swap_free) / 1024 ))
+        echo "Swap:      ${swap_used_mb} MB / ${swap_mb} MB"
+    fi
+}
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -m|--monitor) MONITOR=true; shift ;;
+        -j|--json) FORMAT="json"; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) shift ;;
+    esac
+done
+
+if $MONITOR; then
+    watch -n 1 free
+else
+    show_mem
+fi
+EOF
